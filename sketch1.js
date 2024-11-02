@@ -25,7 +25,7 @@ let enemies = [];
 let levelHitMap;
 let levelHitMapSmall;
 
-let platforms;
+//let platforms;
 
 let buffer;
 let tileSize = 25;
@@ -95,7 +95,7 @@ function preload() {
     jumpSound = loadSound("sounds/jump.mp3");
     levelHitMap = loadImage("images/hitmaps/hit1.png");
     levelHitMapSmall = loadImage("images/hitmaps/hit1.png");
-    platforms = loadImage("images/platforms.png");
+    //platforms = loadImage("images/platforms.png");
     //spriteSheet = loadImage("images/spriteSheet.png");
     rainbowRoad = loadImage("images/rainbowRoad.png");
     enemy = loadImage("images/enemy.png");
@@ -164,8 +164,6 @@ function setup() {
 
     curtain.resize(1000, 500);
     welcomeBG.resize(1000, 500);
-    redmushroom.resize(50, 50);
-    star.resize(50, 50);
     cursor.resize(50, 50);
 
     fade = 255;
