@@ -1,20 +1,25 @@
 let state = 4; //state 0: character selection; 1: game play; 2: game over; 3: win; 4: welcome screen
-
+let originalState = 4;
 let characters = {};
 let character;
 let characterIndex; 
 let indexSelected = false;
 
-let jumpSound;
 let backgroundGif, backgroundGifFlipped;
 let p1 = 0, p2 = 1000, speed = 1;
 let h1 = 0;
 
+//graphics for character selection
+let k;
+let m;
+let l;
+let r;
+let curtain;
+let cursor;
+
 // Health
 let health = 5, maxHealth = 5, healthImg;
 
-// Font
-let font;
 let images;
 
 // Enemy
@@ -25,16 +30,13 @@ let enemies = [];
 let levelHitMap;
 let levelHitMapSmall;
 
-//let platforms;
+let platforms;
 
 let buffer;
 let tileSize = 25;
 
-//
 let hurt = false;
 let hurtFrameCount;
-//local storage (pipeline position)
-//flag for active canvas
 
 let screenSize = 1000;
 
@@ -43,6 +45,7 @@ let boxX;
 let characterSelected = false;
 
 //state buffers
+let jumpSound;
 let gameOverScreen;
 let selectCharactersScreen;
 let welcomeScreen;
@@ -50,26 +53,34 @@ let welcomeBG;
 
 let myfont;
 
-//graphics for character selection
-let k;
-let m;
-let l;
-let r;
-let curtain;
-let cursor;
-
 //fading
-let fade;
+let fade, fade1, fade2;
 let fadeSpeed = 10;
 
 //winning screen
 let confetti = [];
 let confettiSign = 0; //allow reassignment only when confettiSign is 0.
 
+//timer variables
+let victory = false;
+let startTime;
+let elapsedTime = 0;
+let timerGo = true;
+let countdownTime = 100;
+let remainingTime;
+let timerStarted = false;
+
+//sounds
+let bgm;
+let lostLifeSound;
+let gameOverSound;
+let gameOverPlayed = false;
+let winSound;
+let winPlayed = false;
+
 
 function preload() {
-    font = loadFont("fonts/Tiny5-Regular.ttf");
-
+    localStorage.clear();
     images = {
         mario: { 
             right: loadImage("images/mario.png"), 
@@ -92,11 +103,7 @@ function preload() {
     backgroundGif = loadImage('images/background.gif'); 
     backgroundGifFlipped = loadImage("images/bg2.gif");
     healthImg = loadImage('images/heart.png'); 
-    jumpSound = loadSound("sounds/jump.mp3");
-    levelHitMap = loadImage("images/hitmaps/hit1.png");
-    levelHitMapSmall = loadImage("images/hitmaps/hit1.png");
-    //platforms = loadImage("images/platforms.png");
-    //spriteSheet = loadImage("images/spriteSheet.png");
+    levelHitMap = loadImage("images/hitmaps/finalHitMap.png");
     rainbowRoad = loadImage("images/rainbowRoad.png");
     enemy = loadImage("images/enemy.png");
     tube = loadImage("images/tube.png");
@@ -108,38 +115,52 @@ function preload() {
     welcomeBG = loadImage("images/welcomeBG.jpg");
     curtain = loadImage("images/curtains.png");
     cursor = loadImage("images/cursor.png");
-
+    
+    //load sounds
+    jumpSound = loadSound("sounds/jump.mp3");
+    bgm = loadSound("sounds/theme.mp3");
+    gameOverSound = loadSound("sounds/gameEnd.mp3");
+    lostLifeSound = loadSound("sounds/lostLife.wav");
+    winSound = loadSound("sounds/win.mp3");
 }
 
 
 function setup() {
+    // background music
+    bgm.loop();
+
     createCanvas(1000, 500);
 
+    //resize character selection screen graphics
     k.resize(100,100);
     m.resize(70,100);
     l.resize(77,100);
     r.resize(77,100);
+    curtain.resize(1000, 500);
 
-    images.kirby.right.resize(75, 50);
-    images.kirby.left.resize(75, 50);
-    
+    //resize character graphics
+    images.kirby.right.resize(45, 45);
+    images.kirby.left.resize(45, 45);
     images.mario.right.resize(40, 40);
     images.mario.left.resize(40, 40);
-    
     images.luigi.right.resize(50, 40);
     images.luigi.left.resize(50, 40);
-    
     images.rosalina.right.resize(40, 50);
     images.rosalina.left.resize(40, 50);
+  
+
+    //resize welcome screen graphics and cursor graphics
+    welcomeBG.resize(1000, 500);
+    cursor.resize(50, 50);
 
     // resize background images size
     backgroundGif.resize(width, height);
     backgroundGifFlipped.resize(width, height);
+    levelHitMapSmall = createImage(levelHitMap.width, levelHitMap.height);
+    levelHitMapSmall.copy(levelHitMap, 0, 0, levelHitMap.width, levelHitMap.height, 0, 0, levelHitMap.width, levelHitMap.height);
+    levelHitMapSmall.resize(levelHitMap.width/25,levelHitMap.height/25);
 
-    levelHitMapSmall.resize(5000/25,500/25);
-
-    //levelHitMap.resize(width,height);
-
+    //create characters
     characters = {
         1: new Character(images.kirby, 50, 100, 22, 1, 75, 40),
         2: new Character(images.mario, 70, 100/*height-32-40*/, 22, 1, 40, 40),
@@ -147,79 +168,176 @@ function setup() {
         4: new Character(images.rosalina, 50, 100/*height-32-50*/, 22, 1, 40, 50)
     };
 
-    
+    //create buffer for tiles
     buffer = createGraphics(1000,500);
     groundTiles(buffer);
     
+    //populate enemies
     for(let i = 0; i<5;i++){
         enemies.push(new Enemy(random(100,1000), 0, random([1,2,3])));
-    }   
+    }
 
-    
-    //console.log(character.middleY);
-    image(levelHitMap,h1,0);
-
-    // character = characters[characterIndex]; // sets initial character
-    // character.sensors();
-
-    curtain.resize(1000, 500);
-    welcomeBG.resize(1000, 500);
-    cursor.resize(50, 50);
-
-    fade = 255;
+    //populate confetti array
     for (let i = 0; i < 200; i++) {
         confetti.push(new Confetti(0, 100));
         confetti.push(new Confetti(1000, 100));
     }
     confettiSign = 1;
 
+    //display hitmap for detection
+    image(levelHitMap,h1,0);
+
+    //instantiate fading variables
+    fade = 255;
+    fade1 = 255;
+    fade2 = 255;
+
+    hideLoading();
 }
 
 
 function draw() {
-    //hides system cursor
+    //pause the mario game when going to the candy crush game
+    if (localStorage.getItem('gamePaused') === 'true') {
+        return;
+    }
+
+    // resume game after candy crush
+    if (localStorage.getItem('playSketch2') === 'false' && localStorage.getItem('gameResult')) {
+        resumeGame();
+    }
+
+    //constantly hide system cursor
     noCursor();
 
+    //set characterIndex to what user selects. limit this code as one time run each game play
     if(indexSelected == false && characterIndex >= 0){
         character = characters[characterIndex];
         character.sensors();
         indexSelected = true;
     }
 
-    if(state == 0){//select character
+    //select character state
+    if(state == 0){
+        if(state!=originalState){
+            originalState = state;
+        }
+
+        //reset flag for selected character
         indexSelected = false;
         drawSelectCharacters();
-        fill(0,0,0,fade);
+
+        //display buffer
         image(selectCharactersScreen, 0, 0);
+
+        //create black fade in
+        fill(0,0,0,fade);
         rect(0,0,1000,500);
         if(fade >= 0){
             fade -= fadeSpeed;
+            if(fade <= 0){
+                fade = 0;
+            }
         }
         confettiSign = 0;
     }
-    if(state == 1){//game play
+
+    //game play state
+    if(state == 1){
+        gameOverPlayed = false;
+        winPlayed = false;
+
+        //timer logic
+        if(timerStarted == false){//if timer not started
+            startTime = millis();
+            timerStarted = true;//start timer
+        } 
+
+        if(state!=originalState){
+            originalState = state;
+        }
+
+        //reset fade in for previous state (character selection state)
         fade = 255;
-        fade2 = 255;
-        backgroundMovement();
-        //image(levelHitMap,0,0,screenSize,500,h1,0,screenSize,500);
+
+        backgroundMovement(); //move background gif
         changeScreenCamera(); // follows the character to the next screen
         displayHealth();
         character.display(); 
         characterControls();
         characterEnemyInteraction();
-        //confettiSign = 0;
+
+        //fade in effect
+        fill(0,0,0,fade1);
+        if(fade1 >= 0){
+            fade1 -= fadeSpeed;
+            if(fade1 <= 0){
+                fade1 = 0;
+            }
+        }
+
+        //timer logic
+        fill(0);
+        if(timerStarted == true){
+            elapsedTime = (millis() - startTime) / 1000;
+            remainingTime = countdownTime - elapsedTime;
+            showTimer(remainingTime);
+        }
+        if(remainingTime <= 0){
+            timerStarted = false;
+            state = 2;
+        }
+
+        image(cursor, mouseX, mouseY);//display customized cursor
     }
-    if(state == 2){//game over
+
+    //game over state
+    if(state == 2){
+        fade1 = 255;//reset fade variable in state 1 game play
+
+        if(state!=originalState){
+            originalState = state;
+            h1 = 0;
+            groundTiles(buffer);
+        }
         drawGameOver();
         image(gameOverScreen, 0, 0);
         fill(0,0,0,fade2);
         rect(0,0,1000,500);
         if(fade2 >= 0){
             fade2 -= fadeSpeed;
+            if(fade2 <= 0){
+                fade2 = 0;
+            }
         }
-        //reset map but do not display map
+       //display time taken
+        if(gameOverPlayed == false){
+            bgm.setVolume(0);
+            lostLifeSound.setVolume(0);
+            gameOverSound.play();
+            gameOverPlayed = true;
+        }
+        // Reset timer when game is won
+        timerStarted = false;
+        startTime = millis(); // reset the start time
+        elapsedTime = 0; // reset elapsed time
+        remainingTime = countdownTime; // reset countdown time to 100 seconds   
     }
-    if(state == 3){//win
+
+    //win state
+    if(state == 3){
+        if(winPlayed == false){
+            bgm.setVolume(0);
+            lostLifeSound.setVolume(0);
+            winSound.play();
+            winPlayed = true;
+        }
+        fade1 = 255
+        if(state!=originalState){
+            originalState = state;
+            h1 = 0;
+            groundTiles(buffer);
+        }
         drawWin();
         image(winScreen, 0, 0);
 
@@ -240,16 +358,32 @@ function draw() {
             }
             confettiSign = 1;
         }
+        //black fade in
+        fill(0,0,0,fade2);
+        rect(0,0,1000,500);
+        if(fade2 >= 0){
+            fade2 -= fadeSpeed;
+            if(fade2 <= 0){
+                fade2 = 0;
+            }
+        }
+
+        // Reset timer when game is won
+        timerStarted = false;
+        startTime = millis(); // reset the start time
+        elapsedTime = 0; // reset elapsed time
+        remainingTime = countdownTime; // reset countdown time to 100 seconds
     }
-    if(state == 4){//welcome screen
+
+    //welcome state
+    if(state == 4){
+        bgm.setVolume(1);
+        lostLifeSound.setVolume(1);
+        fade2 = 255;
         drawWelcome();
         image(welcomeScreen, 0, 0);
     }
 }
-
-
-
-
 
 
 //functions
@@ -260,12 +394,8 @@ function changeScreenCamera(){
         if(h1<levelHitMap.width){
             p1 -= screenSize;
             p2 -= screenSize;
-            //h1 += screenSize;
             
             h1 = min(h1 + screenSize, levelHitMap.width - screenSize);
-            // console.log(h1);
-            // console.log(levelHitMap.width);
-            // console.log(character.x);
             image(levelHitMap,0,0,screenSize,500,h1,0,screenSize,500);
             groundTiles(buffer);
             for(let i = 0; i<5;i++){
@@ -286,11 +416,11 @@ function characterEnemyInteraction(){
                 if((character.y+character.height/2<enemies[i].y-enemies[i].size/2)
                 &&((character.x+character.width/2>enemies[i].x-enemies[i].size/2)||(character.x-character.width/2<enemies[i].x+enemies[i].size/2))){
                     character.jumpPower = 15; 
-                    //character.y -= 100;
                 }else{
                     decreaseHealth();
                     hurt=true;
                     hurtFrameCount = frameCount;
+                    lostLifeSound.play();
                 }
             }
             enemies.splice(i,1);
@@ -315,6 +445,7 @@ function characterEnemyInteraction(){
         }
     }
 }
+
 //movement of backgroundGif
 function backgroundMovement() {
     image(backgroundGif, p1, 0);
@@ -360,23 +491,24 @@ function groundTiles(buffer){
                     totalColorR += red(levelHitMapSmall.get(xCoor+h1/25, yCoor));
                     totalColorG += green(levelHitMapSmall.get(xCoor+h1/25, yCoor));
                     totalColorB += blue(levelHitMapSmall.get(xCoor+h1/25, yCoor));
-                    
                     maxColor+=255+255+255;
                 }
             }
             totalColor = totalColorR+totalColorG+totalColorB;
             //black pixels
-            if (totalColor == 0) {
-                if ((totalColorR==0&&totalColorG==0&&totalColorR==0)){
+            if (totalColor < 200) {
                     buffer.image(rainbowRoad,xTile,yTile,tileSize,tileSize,0,0+(rainbowCount%5)*16,16,16);
                     rainbowCount++;
-                }
             }
-            else if(totalColorR!=0&&totalColorG==0&&totalColorB==0){
+            else if(totalColorR>=200&&totalColorG<100&&totalColorB<100){
                 buffer.image(rainbowRoad,xTile,yTile,tileSize,tileSize,0,6*16+(rainbowCount%5)*16,16,16);
                 rainbowCount++;
             }
-            
+            else if(totalColorR<100&&totalColorG>=200&&totalColorB<100){
+                buffer.fill(255,255,0,200);
+                buffer.noStroke();
+                buffer.rect(xTile,yTile,tileSize,tileSize);
+            }
         }
     }
 }
@@ -391,6 +523,7 @@ function displayHealth() {
 
 //decrease health
 function decreaseHealth() {
+    //health--;
     health--;
 }
 
@@ -403,10 +536,7 @@ function drawGameOver(){
     gameOverScreen = createGraphics(1000,500);
     gameOverScreen.image(backgroundGif,0,0);
     gameOverScreen.background(0,0,0,50);
-    //(251, 208, 0); yellow
-    //(229, 37, 33); red
-    //(4, 156, 216) blue
-    //(67, 176, 71) green
+
     //game over text
     gameOverScreen.strokeWeight(3);
     gameOverScreen.stroke(229, 37, 33);
@@ -441,7 +571,7 @@ function drawGameOver(){
         gameOverScreen.fill(251, 208, 0);
         gameOverScreen.text("Restart", width/2, height/2+57);
         if(mouseIsPressed == true){
-            state = 0;
+            state = 4;
             characterSelected = false;
             gameOverScreen.clear();
         }
@@ -449,6 +579,8 @@ function drawGameOver(){
     //draw cursor
     gameOverScreen.image(cursor, mouseX, mouseY);
 }
+
+
 function drawWin(){
     winScreen = createGraphics(1000, 500);
     winScreen.background(0);
@@ -489,14 +621,16 @@ function drawWin(){
         winScreen.text("Play Again", width/2, height/2+87);
         if(mouseIsPressed == true){
             state = 4;
+            characterSelected = false;
             winScreen.clear();
         }
     }
 
     //draw cursor
     winScreen.image(cursor, mouseX, mouseY);
-
 }
+
+
 function drawSelectCharacters(){
     selectCharactersScreen = createGraphics(1000, 500);
 
@@ -509,7 +643,6 @@ function drawSelectCharacters(){
     selectCharactersScreen.textFont(myfont);
     selectCharactersScreen.textAlign(CENTER);
     selectCharactersScreen.fill(251, 208, 0);
-    //selectCharactersScreen.text("NameOfGame", 190, 80);
 
     //selection prompt
     selectCharactersScreen.textSize(40);
@@ -641,11 +774,10 @@ function drawWelcome(){
     welcomeScreen.textAlign(CENTER);
     welcomeScreen.textSize(50);
     welcomeScreen.fill(251, 208, 0);
-    welcomeScreen.text("NameOfGame", 190, 80);
+    welcomeScreen.text("MarioCrush", 190, 80);
     welcomeScreen.textSize(80);
     welcomeScreen.text("Press Start", width/2, height/2);
     
-
     //start button
     //confirmation box
     if(mouseX < width/2-75 || mouseX > width/2+75 || mouseY < height/2+125 || mouseY > height/2+175){
@@ -682,6 +814,35 @@ function drawWelcome(){
     welcomeScreen.image(cursor, mouseX, mouseY);
 }
 
+// display the timer 
+function showTimer(remainingTime) {
+    fill(0);
+    textFont(myfont);
+    textSize(30);
+    textAlign(RIGHT, TOP);
+    text(`Time: ${max(0, floor(remainingTime))}s`, width - 50, 30);
+}
 
+// display the final time
+function showFinal() {
+    fill(251, 208, 0);
+    textFont(myfont);
+    textSize(32);
+    textAlign(RIGHT, TOP);
+    text(`You Spent: ${floor(elapsedTime)} seconds`, width - 50, 20);
+}
 
-
+// start the game back up after pausing
+function resumeGame() {
+    bgm.setVolume(1);
+    const result = localStorage.getItem('gameResult');
+    //if user wins candycrush, add three hearts
+    if (result === 'win') {
+        health = health + 3;
+    } else if (result === 'lose') {
+        //if the user loses candycrush, minus one heart
+        health = max(health - 1, 0);
+    }
+    //reset the candycrush result, go to the mario game
+    localStorage.removeItem('gameResult');
+}

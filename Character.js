@@ -18,8 +18,6 @@ class Character {
         //compute sensors
         this.middleX = this.x + this.width / 2;
         this.middleY = this.y + this.height / 2;
-        // this.left = this.x - 2;
-        // this.right = this.x + this.width + 2;
         this.left = this.x - 5;
         this.right = this.x + this.width + 5;
         this.up = this.y+1;
@@ -27,7 +25,6 @@ class Character {
     }
 
     reset(a){
-        //for now
         if(a == 1){
             this.y = 100;
             this.x = 50;
@@ -35,30 +32,32 @@ class Character {
             state = 2; //enter game over state
         }else{
             state = 1;
-        }
-        
+        } 
     }
 
     display() {
         //apply gravity constantly
         this.detectSurroundings();
         this.applyGravity();
+
         //constrain character to left canvas
         if (!(this.x < screenSize)) {
             this.x = 50;
         }
         if(this.y+this.height/2>height-25||health<=0){
-        // if(health <= 0){
             this.reset(1);
         }
-
         if(h1+screenSize<=levelHitMap.width){
             this.x = constrain(this.x, 0, screenSize+1);
+        }
+        while(this.y-this.height/2 <=0){
+            this.y+=1;
         }
     
         //display character artwork according to movement direction
         const img = this.images[this.direction];
         image(img, this.x, this.y);
+
         //decrease jump power at constant rate
         this.jumpPower -= this.gravity;
         //if jump power runs out, reset jump power to zero
@@ -67,7 +66,6 @@ class Character {
         }
         // apply jump power (if any)
         this.y -= this.jumpPower;
-
     }
 
     applyGravity(){
@@ -76,7 +74,6 @@ class Character {
         this.fallSpeed = constrain(this.fallSpeed + this.gravity, 0, gravityMax);
         //re-calculate sensors at every frame
         this.sensors();
-        
 
         //calculating if normal fall in next frame is legal
         let case1 = blue(levelHitMap.get(this.middleX+h1, this.down + this.fallSpeed));
@@ -88,7 +85,6 @@ class Character {
         
         //counts case 3 to prevent infinite loop, case 3 can run max fallSpeed times, else case 1 is sufficient to treat the falling distance
         let counter = this.fallSpeed;
-
 
         if(case1 == 255 && case2 == 255){ 
             //if character is far in the air (at least one fallSpeed distance from ground)  
@@ -110,10 +106,11 @@ class Character {
                 }
             }
         }
+
         //display downward sensor
         noStroke();
         fill(255,0,0);
-        ellipse(this.middleX, this.down + this.fallSpeed,5,5);
+        
         //cooling down jump function
         this.jumpCool--;
         if (this.jumpCool < 0) {
@@ -127,50 +124,45 @@ class Character {
         //draw sensor
         noStroke();
         fill(255,0,0);
-        ellipse(this.left, this.middleY, 5, 5);
         //instantiate left sensor
         let p = blue(levelHitMap.get(this.left+h1, this.middleY));
+        let p2 = green(levelHitMap.get(this.left+h1, this.middleY));
         //if senses white, move left
-        if (p == 255) {
+        if (p == 255||p2==255) {
             this.x -= 5;
             this.direction = "left";
-        }
-        else {
-            //console.log("Obstacle detected on the LEFT.");
-        }  
+        } 
     }
 
     moveRight() {
-        //console.log(this.x);
         this.sensors();
         noStroke();
         fill(255,0,0);
-        ellipse(this.right, this.middleY,5,5);
         let p = blue(levelHitMap.get(this.right+h1, this.middleY));
-        if (p == 255) {
+        let p2 = green(levelHitMap.get(this.right+h1, this.middleY));
+        if (p == 255||p2==255) {
             //if at left half of canvas, move character
             //else move background
             this.x+=5;
             this.direction = "right";
         }
-        else {
-            //console.log("Obstacle detected on the RIGHT.");
-        }  
     }
 
     jump() {
         //compute up and down sensors
         this.sensors();
         let down = blue(levelHitMap.get(this.middleX+h1, this.down)) + red(levelHitMap.get(this.x+h1, this.down)) + red(levelHitMap.get(this.x+h1 + this.width, this.down));
+        let downLeft = blue(levelHitMap.get(this.middleX-this.width/2+h1, this.down)) + red(levelHitMap.get(this.middleX-this.width/2+h1, this.down)) + red(levelHitMap.get(this.middleX-this.width/2+h1, this.down));
+        let downRight = blue(levelHitMap.get(this.middleX+this.width/2+h1, this.down)) + red(levelHitMap.get(this.middleX+this.width/2+h1, this.down)) + red(levelHitMap.get(this.middleX+this.width/2+h1, this.down));
         let up = blue(levelHitMap.get(this.middleX+h1, this.up)) + red(levelHitMap.get(this.x+h1, this.up)) + red(levelHitMap.get(this.x+h1 + this.width, this.up));
-        console.log(up + "up");
+
         //draw sensors
-        fill(255,0,0);
-        ellipse(this.middleX, this.down, 5, 5);
-        ellipse(this.middleX, this.up, 5, 5);
+        //fill(255,0,0);
+        //ellipse(this.middleX, this.down, 5, 5);
+        //ellipse(this.middleX, this.up, 5, 5);
 
         //if on the ground and out of jump cooling, give initial jump force and restart cooling
-        if(down == 0 && this.jumpCool <= 0){  
+        if((down == 0 || downLeft == 0 || downRight == 0)&& this.jumpCool <= 0){  
             this.jumpPower = this.force;
             jumpSound.play();
             this.jumpCool = 30;
@@ -185,22 +177,26 @@ class Character {
     detectSurroundings(){
         let SensorG = green(levelHitMap.get(this.x+h1, this.middleY));
         let SensorB = blue(levelHitMap.get(this.x+h1, this.middleY));
-        
-        if((SensorG==255)&&(SensorB!=255)){
+
+        if((SensorG>=200)&&(SensorB<=200)){
             this.win();
         }
-
-        if((SensorG!=255)&&(SensorB==255)){
+        if((SensorG<200)&&(SensorB>=200)){
             this.tunnel();
         }
-
     }
 
     win(){
-        console.log("Win!!!");
-    }
-    tunnel(){
-        console.log("Tunnel");
+        state = 3;
+        //console.log("Win!!!");
     }
 
+    tunnel(){
+        bgm.setVolume(0);
+        //pause mario game, open candycrush
+        localStorage.setItem('gamePaused', 'true');
+        localStorage.setItem('playSketch2', 'true');
+        //move the chracter's position away from the tunnel
+        this.x += 75;
+    }
 }

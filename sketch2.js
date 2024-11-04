@@ -30,6 +30,11 @@ let victory = false;
 let startTime;
 let elapsedTime = 0;
 let timerGo = true;
+let countdownTime = 30;
+let remainingTime;
+
+// tracks when we are playing the game or not
+let playing = false;
 
 function preload(){
     font = loadFont("fonts/Tiny5-Regular.ttf");
@@ -40,16 +45,15 @@ function preload(){
     star = loadImage("images/star.png");
     question = loadImage("images/question.png");
     backgroundGif = loadImage("images/crushbg.gif");
+    backgroundGif2 = loadImage("images/crushbg2.gif");
     backgroundSound = loadSound("sounds/mariotheme.mp3");
     victorySound = loadSound("sounds/clearstage.wav");
 }
 
 function setup() {
-    // canvas for mario game, size of desktop
-    createCanvas(800,512);
+    createCanvas(1000,500);
 
     // background music
-    backgroundSound.setVolume(.1);
     backgroundSound.loop();
 
     // resizing all of the items
@@ -59,29 +63,35 @@ function setup() {
     star.resize(50, 50);
     question.resize(50, 50);
 
-    /*for (let x = 100; x < 700; x += 65) {
-        for (let y = 100; y < 400; y += 65) {
-            let type = random(["coin", "koopa", "mushroom", "star", "question"]);
-            grid.push(new Item(x, y, type));
-            
-        }
-    }
-    //console.log(grid);*/
+    // resizing the second background (makes the screen wider)
+    backgroundGif2.resize(width, height);
 
+    // create the array of items
     for (let y = 0; y < 5; y++) {
-        for (let x = 0; x < 10; x++) {
+        for (let x = 0; x < 12; x++) {
             let type = random(["coin", "koopa", "mushroom", "star", "question"]);
             grid[y].push(new Item(100 + x * 65, 100 + y * 65, type, x, y));            
         }
     }    
 
     startTime = millis();
-
 }
 
 function draw() {
+    // start the candy crush game after mario game tunnel is hit
+    if (localStorage.getItem('playSketch2') === 'true' && playing === false) {
+        // canvas for mario game, size of desktop
+        backgroundSound.setVolume(1);
+        startGame();
+        playing = true;
+    } else if (playing === false) {
+        backgroundSound.setVolume(0);
+        return;
+    }
+
     background(0);
     image(backgroundGif, 0, 0);
+    image(backgroundGif2, 800, 0);
 
     if (victory == false) {
         // calling for the grid to display
@@ -93,20 +103,23 @@ function draw() {
 
         displayScore();
 
+        // show the remaining time as user plays
         if (timerGo == true) {
             elapsedTime = (millis() - startTime) / 1000;
-            showTimer();
+            remainingTime = countdownTime - elapsedTime;
+            showTimer(remainingTime);
         }
     }
 
-    if (score >= 30 && victory == false) {
+    // when the user wins
+    if (score >= 50 && victory == false) {
         victory = true;
         timerGo = false;
         backgroundSound.stop();
         victorySound.play();
 
         noLoop();
-        background(255, 255, 255, .5);
+        background(255, 255, 255, 200);
         fill(0);
         stroke(0);
         textSize(48);
@@ -114,16 +127,20 @@ function draw() {
         text("Congrats!", width / 2, height / 2);
 
         textSize(32);
-        text("You have completed the challenge", width / 2, (height / 2) + 40); 
+        text("+3 HEARTS", width / 2, (height / 2) + 40); 
         showFinal();
+        
+        endGame(victory);
     }
-    `if (score <= 30 && victory == false && timerGo = false) {
+    
+    // when the user loses
+    else if (score < 50 && remainingTime <= 0) {
         timerGo = false;
         backgroundSound.stop();
 
         noLoop();
-        background(255, 0, 0, .5);
-        fill(0);
+        background(255, 0, 0, 200);
+        fill(255);
         stroke(0);
         textSize(48);
         textAlign(CENTER, CENTER);
@@ -132,7 +149,11 @@ function draw() {
         textSize(32);
         text("-1 HEART", width / 2, (height / 2) + 40); 
         showFinal();
-    }`
+
+        endGame(victory);
+        return;
+    }
+    hideLoading();
 }
 
 //allow the user to click on the items on the grid
@@ -143,7 +164,7 @@ function mousePressed() {
                 clickedItems.push(grid[i][j]);
                 clickCount += 1;
 
-                if (clickCount == 3) {
+                if (clickCount == 3 || clickCount == 2) {
                     checkMatch();
                 }
                 break;
@@ -152,22 +173,9 @@ function mousePressed() {
     }
 }
 
-/*
+// function to check the type of items in the array and see if they match eachother to count for points
 function checkMatch() {
-    if (clickedItems[0].type == clickedItems[1].type && clickedItems[1].type == clickedItems[2].type) {
-        score += 10;
-        replaceItems();
-    } else {
-        for (let i = 0; i < clickedItems.length; i++) {
-            clickedItems[i].clicked = false;
-        }
-    }
-    clickedItems = [];
-    clickCount = 0;
-}
-*/
-
-function checkMatch() {
+    // for select 3 items
     if (clickedItems.length === 3) {
         //check type
         if (clickedItems[0].type === clickedItems[1].type && clickedItems[1].type === clickedItems[2].type){
@@ -203,9 +211,23 @@ function checkMatch() {
             }  
         } 
     }
+    
+    // for select pairs of items
+    if (clickedItems.length === 2) {
+        if (clickedItems[0].type === clickedItems[1].type) {
+            if ((clickedItems[0].arrayX === clickedItems[1].arrayX && (clickedItems[0].arrayY === clickedItems[1].arrayY + 1 || clickedItems[0].arrayY === clickedItems[1].arrayY - 1)) ||
+                (clickedItems[0].arrayY === clickedItems[1].arrayY && (clickedItems[0].arrayX === clickedItems[1].arrayX + 1 || clickedItems[0].arrayX === clickedItems[1].arrayX - 1))) {
+                score += 5;
+                replaceItems();
+                resetSelection();
+                return;
+            }
+        }
+    }
     resetSelection();   
 }
 
+// reset the selection when it is not a matching pair/triple
 function resetSelection() {
     for (let i = 0; i < clickedItems.length; i++) {
         clickedItems[i].clicked = false;
@@ -214,16 +236,7 @@ function resetSelection() {
         clickCount = 0; //unclicking the items because they are not adjacent
 }
 
-////changes go up to here
-//     } else {
-//         for (let i = 0; i < clickedItems.length; i++) {
-//             clickedItems[i].clicked = false;
-//         }
-//     }
-//     clickedItems = [];
-//     clickCount = 0;
-// }
-
+// change into different random items when the user gets the correct pairs/triple items
 function replaceItems() {
     for (let i = 0; i < clickedItems.length; i++) {
         clickedItems[i].type = random(["coin", "koopa", "mushroom", "star", "question"]);
@@ -280,7 +293,7 @@ class Item {
             else if (this.clicked == true) {
                 this.clicked = false;
                 clickCount -= 1;
-                clickedItems = clickedItems.splice(clickedItems.indexOf(this), 1);
+                clickedItems.splice(clickedItems.indexOf(this), 1);
                 return false;
             }
         }
@@ -298,12 +311,12 @@ function displayScore() {
 }
 
 // display the timer 
-function showTimer() {
+function showTimer(remainingTime) {
     fill(0);
     textFont(font);
     textSize(30);
     textAlign(RIGHT, TOP);
-    text(`Time: ${floor(elapsedTime)}s`, width - 10, 10);
+    text(`Time: ${max(0, floor(remainingTime))}s`, width - 10, 10);
 }
 
 // display the final time
@@ -312,5 +325,25 @@ function showFinal() {
     textFont(font);
     textSize(32);
     textAlign(CENTER, CENTER);
-    text(`Final Time: ${floor(elapsedTime)} seconds`, width / 2, (height / 2) + 80);
+    text(`You Spent: ${floor(elapsedTime)} seconds`, width / 2, (height / 2) + 80);
+}
+
+// reset and begin the game
+function startGame() {
+    score = 0;
+    timerGo = true;
+    startTime = millis();
+}
+
+// use location storage to see when the user wins or loses the game
+function endGame(victory) {
+    if (victory) {
+        localStorage.setItem('gameResult', 'win');
+    } else {
+        localStorage.setItem('gameResult', 'lose');
+    }
+    // go back to the mario game 
+    localStorage.setItem('gamePaused', 'false');
+    localStorage.setItem('playSketch2', 'false');
+    noLoop();
 }

@@ -1,6 +1,5 @@
 let mushroom;
 
-
 class Enemy {
     constructor(x, y, speed) {
       this.x = x;            
@@ -21,20 +20,16 @@ class Enemy {
     update() {
       this.display();
       this.x += this.speed * this.direction;
-    
       let bottom = this.y - this.size/2;
 
       //fall
-      if (red(levelHitMap.get(this.x+h1, this.y+this.size/2))!=0) {
+      if (red(levelHitMap.get(this.x+h1, this.y+this.size/2))>200) {
             this.velocityY += this.gravity;
             this.y += this.velocityY;
-            if(red(levelHitMap.get(this.x+h1,this.y-1)) ==0){
-              this.y=this.y+1;
-            }
         }else{
             this.velocityY = 0;
       }
-      
+
       //wrapper
       if (red(levelHitMap.get(this.x+h1-this.size/2,this.y)) == 0) {
         this.direction *= -1;

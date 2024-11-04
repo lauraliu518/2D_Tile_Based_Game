@@ -1,4 +1,3 @@
-
 <!doctype html>
 <html lang="en-us">
 
@@ -9,14 +8,54 @@
     <!-- include the p5.js library from a local file -->
     <!-- load in the p5 sound library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/addons/p5.sound.js"></script>
-    <!-- your custom sketch code -->
-    <script src="sketch2.js"></script>
+    <script id="frames" src="sketch2.js"></script>
 
     <!-- custom CSS styles for this page -->
-    <style></style>
+    <style>
+      @font-face {
+        font-family: 'Tiny5-Regular';
+        src: url('fonts/Tiny5-Regular.ttf') format('truetype');
+        font-weight: normal;
+        font-style: normal;
+      }
 
-</head>
+      body {
+        margin: 0;
+        background: #4c8bf5;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        font-family: 'Tiny5-Regular';
+      }
 
-<body></body>
+      #loading {
+        text-align: center;
+        color: white;
+      }
 
+      #frames {
+        display: none;
+      }
+      
+      .mario {
+        width: 100px;
+        margin: 0 auto;
+      }
+    </style>
+  </head>
+
+<body>
+    <div id="loading">
+      <img src="images/mariowait.gif" alt="Mario" class="mario">
+      <h1>Loading...</h1>
+    </div>
+  
+    <script>
+      function hideLoading() {
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('frames').style.display = 'block'; 
+      }
+    </script>
+</body>
 </html>
