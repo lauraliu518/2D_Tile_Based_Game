@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en-us">
+  <head>
+    <!-- load in the p5 core library -->
+    <script src="https://cdn.jsdelivr.net/npm/p5@1.7.0/lib/p5.js"></script>
+
+    <!-- load in the p5 sound library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/addons/p5.sound.js"></script>
+
+    <!-- custom CSS styles for this page -->
+    <style>
+      @font-face {
+        font-family: 'Arcade';
+        src: url('fonts/ARCADE.TTF') format('truetype');
+        font-weight: normal;
+        font-style: normal;
+      }
+
+      body {
+        margin: 0;
+        background: url('images/page.jpg');
+        background-size: cover;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        flex-direction: column;
+        height: 100vh;
+        font-family: 'Arcade';
+      }
+
+      #loading {
+        text-align: center;
+        color: white;
+        font-family: 'Arcade';
+      }
+
+      #frames {
+        border-width: 5px;
+        border-style: solid;
+        border-color: white;
+        display: none;
+        position: relative;
+        width: 1000px;
+        height: 500px;
+        box-shadow: 0px 0px 15px rgba(0, 0, 0, 0.5);
+        border-radius: 15px;
+        overflow: hidden;
+      }
+      
+      .mario {
+        width: 100px;
+        margin: 0 auto;
+      }
+
+      #features {
+        width: 960px;
+        text-align: column;
+        color: #4c8bf5;
+        padding: 20px;
+        margin: 20px;
+        background: white;
+        border-radius: 15px;
+        font-size: 15px;
+      }
+    </style>
+  </head>
+
+  <body>
+    <!-- customizing the loading image-->
+    <div id="loading">
+      <img src="images/mariowait.gif" alt="Mario" class="mario">
+      <h1>Loading...</h1>
+    </div>
+
+    <div id="frames">
+      <iframe scrolling = "no" id="s1" src="sketch1.html"></iframe>
+      <iframe scrolling = "no" id="s2" src="sketch2.html"></iframe>
+    </div>
+
+    <script>
+      function hideLoading() {
+        localStorage.removeItem('playSketch2');
+        localStorage.removeItem('gameResult');
+
+        setTimeout(() => {
+          document.getElementById('loading').style.display = 'none';
+
+          const framesContainer = document.getElementById('frames');
+
+          //match the dimensions of the screen
+          framesContainer.style.position = 'relative';
+          framesContainer.style.width = '1000px';  
+          framesContainer.style.height = '500px'; 
+          framesContainer.style.display = 'block';
+
+          const sketch1 = document.getElementById('s1');
+          const sketch2 = document.getElementById('s2');
+          //bring sketch 1 in
+          sketch1.style.position = 'absolute';
+          sketch1.style.top = '0px';
+          sketch1.style.left = '0px';
+          sketch1.style.width = '100%';
+          sketch1.style.height = '100%';
+          sketch1.style.border = 'none';
+          sketch1.style.zIndex = '1';
+
+          //bring sketch 2 in on top of sketch 1
+          sketch2.style.position = 'absolute';
+          sketch2.style.top = '0px';
+          sketch2.style.left = '0px';
+          sketch2.style.width = '100%';
+          sketch2.style.height = '100%';
+          sketch2.style.border = 'none';
+          sketch2.style.zIndex = '0';
+          
+          //check the game state every 0.1 seconds
+          setInterval(checkGameState, 100);
+          //loading the screen for 0.5 seconds
+        }, 500);
+      }
+      
+      //function to check the game state so we know which sketch to display
+      function checkGameState() {
+        const sketch1 = document.getElementById('s1');
+        const sketch2 = document.getElementById('s2');
+
+        //if sketch2 is showing, then don't show sketch1, viceversa
+        if (localStorage.getItem('playSketch2') === 'true') {
+          sketch1.style.zIndex = '0';
+          sketch2.style.zIndex = '1';
+        } else {
+          sketch1.style.zIndex = '1'; 
+          sketch2.style.zIndex = '0'; 
+        }
+
+        //once the candycrush game receives a win/loss result, go back to the mario game
+        if (localStorage.getItem('gameResult')) {
+          setTimeout(() => {
+            localStorage.removeItem('playSketch2');
+            localStorage.removeItem('gameResult');
+            localStorage.removeItem('gamePaused');
+            //reload or restart the candycrsuh game by restarting the page
+            sketch2.contentWindow.location.reload();
+            //check the game results every 0.1 seconds
+          }, 100);
+        }
+      }
+      window.onload = hideLoading;
+    </script>
+
+    <div id="features">
+      <!-- show the features and aspects of the game -->
+      <h2><strong>Game Features:</strong></h2>
+        <ul>
+          <li><strong>Choose Your Character:</strong> Selecting your favorite character!</li>
+          <li><strong>Move with WAD KEYS:</strong> Use the WAD keys to jump, move left, or move right. Navigate the character through challenging obstacles and pesky goombas</li>
+          <li><strong>Defeat Goombas:</strong> Step on Goombas to defeat them and clear your path</li>
+          <li><strong>Candy Crush Challenges:</strong> As you progress, you'll encounter special Candy-Crush-like matching games by jumping into a tunnel. Clear two adjacent candies of same type to earn at least 50 points before the time runs out!</li>
+          <li><strong>Earn Hearts or Die Trying:</strong> Hearts are your lifeline, earn them by winning the Candy Crush challenges. You earn three hearts by winning the Candy Crush challenge, and lose one heart if you fail the challenge.</li>
+          <li><strong>Reach the end before time is out to win the challenge! Be careful, do not fall from the platforms!</strong></li>
+          <li><strong>Play the game in full screen mode please!</strong></li>
+        </ul>
+      </div>
+</body>
+</html>
